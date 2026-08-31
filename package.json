@@ -1,0 +1,18 @@
+{
+  "name": "smart-rental-house-platform",
+  "version": "1.0.0",
+  "description": "Smart Rental House Management and Discovery Platform - Final Year Capstone Project",
+  "main": "run.js",
+  "scripts": {
+    "start": "node run.js",
+    "dev": "node run.js",
+    "build": "cd frontend && npm run build",
+    "test:auth": "node backend/tests/run-auth-test.js",
+    "test:property": "node backend/tests/run-property-test.js",
+    "test:lifecycle": "node backend/tests/run-lifecycle-test.js",
+    "test:ai": "node backend/tests/run-ai-test.js",
+    "test": "npm run test:auth && npm run test:property && npm run test:lifecycle && npm run test:ai"
+  },
+  "author": "Smart Rental Team",
+  "license": "MIT"
+}

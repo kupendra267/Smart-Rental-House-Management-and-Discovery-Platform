@@ -1,0 +1,657 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------
+
+enum Role {
+  TENANT
+  OWNER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+  DELETED
+}
+
+enum TenantType {
+  BACHELOR
+  FAMILY
+  STUDENT
+  WORKING_PROFESSIONAL
+  OTHER
+}
+
+enum OwnerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  APPROVED
+  REJECTED
+}
+
+enum PropertyType {
+  APARTMENT
+  INDEPENDENT_HOUSE
+  VILLA
+  PG
+  ROOM
+  OTHER
+}
+
+enum FurnishingStatus {
+  FURNISHED
+  SEMI_FURNISHED
+  UNFURNISHED
+}
+
+enum TenantPreference {
+  ANY
+  FAMILY_ONLY
+  BACHELOR_ONLY
+  FEMALE_ONLY
+  STUDENT_ONLY
+}
+
+enum PropertyStatus {
+  DRAFT
+  PENDING_APPROVAL
+  AVAILABLE
+  RESERVED
+  RENTED
+  INACTIVE
+  REJECTED
+}
+
+enum ImageType {
+  EXTERIOR
+  LIVING_ROOM
+  BEDROOM
+  KITCHEN
+  BATHROOM
+  PARKING
+  BALCONY
+  OTHER
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum RentalStatus {
+  ACTIVE
+  ENDED
+  TERMINATED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentGateway {
+  RAZORPAY_SANDBOX
+  MANUAL_VERIFIED
+  TEST_GATEWAY
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum MaintenanceCategory {
+  PLUMBING
+  ELECTRICAL
+  WATER
+  APPLIANCE
+  CLEANING
+  OTHER
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  EMERGENCY
+}
+
+enum MaintenanceStatus {
+  OPEN
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationType {
+  APPLICATION_UPDATE
+  RENT_DUE
+  RENT_OVERDUE
+  PAYMENT_SUCCESS
+  RECEIPT_GENERATED
+  MAINTENANCE_UPDATE
+  PROPERTY_VERIFICATION
+  COMPLAINT_UPDATE
+  SYSTEM
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+// ------------------------------------------------------
+// MODELS
+// ------------------------------------------------------
+
+model User {
+  id             String      @id @default(uuid())
+  fullName       String      @map("full_name")
+  email          String      @unique
+  phone          String?     @unique
+  passwordHash   String      @map("password_hash")
+  role           Role        @default(TENANT)
+  status         UserStatus  @default(ACTIVE)
+  emailVerified  Boolean     @default(false) @map("email_verified")
+  phoneVerified  Boolean     @default(false) @map("phone_verified")
+  profileImage   String?     @map("profile_image")
+  resetToken     String?     @map("reset_token")
+  resetExpiresAt DateTime?   @map("reset_expires_at")
+  lastLoginAt    DateTime?   @map("last_login_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  tenantProfile       TenantProfile?
+  ownerProfile        OwnerProfile?
+  notifications       Notification[]
+  complaintsSubmitted Complaint[]          @relation("UserComplaints")
+  auditLogs           AuditLog[]
+  propertyViews       PropertyView[]
+  reviewsGiven        Review[]             @relation("UserReviews")
+
+  @@index([email])
+  @@index([phone])
+  @@index([role, status])
+  @@map("users")
+}
+
+model TenantProfile {
+  id                    String      @id @default(uuid())
+  userId                String      @unique @map("user_id")
+  occupation            String?
+  companyOrCollege      String?     @map("company_or_college")
+  preferredCity         String?     @map("preferred_city")
+  preferredArea         String?     @map("preferred_area")
+  budgetMin             Float?      @map("budget_min")
+  budgetMax             Float?      @map("budget_max")
+  preferredPropertyType PropertyType? @map("preferred_property_type")
+  preferredBhk          Int?        @map("preferred_bhk")
+  tenantType            TenantType  @default(BACHELOR) @map("tenant_type")
+  moveInDate            DateTime?   @map("move_in_date")
+  numberOfOccupants     Int         @default(1) @map("number_of_occupants")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites    Favorite[]
+  applications Application[]
+  rentals      Rental[]
+  maintenance  MaintenanceRequest[]
+
+  @@map("tenant_profiles")
+}
+
+model OwnerProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique @map("user_id")
+  ownerType          OwnerType          @default(INDIVIDUAL) @map("owner_type")
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  identityDocument   String?            @map("identity_document")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  properties Property[]
+  documents  VerificationDocument[]
+
+  @@map("owner_profiles")
+}
+
+model Property {
+  id                 String             @id @default(uuid())
+  ownerId            String             @map("owner_id")
+  title              String
+  description        String             @db.Text
+  propertyType       PropertyType       @default(APARTMENT) @map("property_type")
+  bhk                Int                @default(1)
+  bathrooms          Int                @default(1)
+  floorNumber        Int                @default(1) @map("floor_number")
+  totalFloors        Int                @default(1) @map("total_floors")
+  areaSqft           Float              @map("area_sqft")
+  furnishingStatus   FurnishingStatus   @default(UNFURNISHED) @map("furnishing_status")
+  monthlyRent        Float              @map("monthly_rent")
+  securityDeposit    Float              @map("security_deposit")
+  maintenanceCharge  Float              @default(0) @map("maintenance_charge")
+  availableFrom      DateTime           @default(now()) @map("available_from")
+  tenantPreference   TenantPreference   @default(ANY) @map("tenant_preference")
+  status             PropertyStatus     @default(PENDING_APPROVAL)
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  viewsCount         Int                @default(0) @map("views_count")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  owner               OwnerProfile           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  location            PropertyLocation?
+  images              PropertyImage[]
+  amenities           PropertyAmenity[]
+  favorites           Favorite[]
+  views               PropertyView[]
+  applications        Application[]
+  rentals             Rental[]
+  reviews             Review[]
+  complaints          Complaint[]
+  verifications       PropertyVerification[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@index([propertyType, bhk, monthlyRent])
+  @@index([status, verificationStatus])
+  @@index([ownerId])
+  @@map("properties")
+}
+
+model PropertyLocation {
+  id         String   @id @default(uuid())
+  propertyId String   @unique @map("property_id")
+  address    String   @db.Text
+  area       String
+  city       String
+  state      String
+  pincode    String
+  latitude   Float
+  longitude  Float
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([city, area])
+  @@index([latitude, longitude])
+  @@map("property_locations")
+}
+
+model PropertyImage {
+  id           String    @id @default(uuid())
+  propertyId   String    @map("property_id")
+  url          String
+  storageKey   String?   @map("storage_key")
+  imageType    ImageType @default(OTHER) @map("image_type")
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, displayOrder])
+  @@map("property_images")
+}
+
+model Amenity {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  icon      String?
+  category  String   @default("General")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  properties PropertyAmenity[]
+
+  @@map("amenities")
+}
+
+model PropertyAmenity {
+  propertyId String   @map("property_id")
+  amenityId  String   @map("amenity_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  amenity  Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, amenityId])
+  @@map("property_amenities")
+}
+
+model PropertyVerification {
+  id         String             @id @default(uuid())
+  propertyId String             @map("property_id")
+  reviewedBy String?            @map("reviewed_by")
+  decision   VerificationStatus @default(PENDING)
+  reason     String?            @db.Text
+  reviewedAt DateTime?          @map("reviewed_at")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  // Relations
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_verifications")
+}
+
+model VerificationDocument {
+  id             String    @id @default(uuid())
+  ownerProfileId String    @map("owner_profile_id")
+  documentType   String    @map("document_type")
+  documentUrl    String    @map("document_url")
+  verified       Boolean   @default(false)
+  verifiedAt     DateTime? @map("verified_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  ownerProfile OwnerProfile @relation(fields: [ownerProfileId], references: [id], onDelete: Cascade)
+
+  @@map("verification_documents")
+}
+
+model Favorite {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  propertyId String   @map("property_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant   TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, propertyId])
+  @@index([tenantId])
+  @@map("favorites")
+}
+
+model PropertyView {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  propertyId String   @map("property_id")
+  ipAddress  String?  @map("ip_address")
+  viewedAt   DateTime @default(now()) @map("viewed_at")
+
+  // Relations
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, viewedAt])
+  @@map("property_views")
+}
+
+model Application {
+  id         String            @id @default(uuid())
+  tenantId   String            @map("tenant_id")
+  propertyId String            @map("property_id")
+  moveInDate DateTime          @map("move_in_date")
+  occupants  Int               @default(1)
+  message    String?           @db.Text
+  status     ApplicationStatus @default(PENDING)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property Property      @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status])
+  @@index([propertyId, status])
+  @@map("applications")
+}
+
+model Rental {
+  id                String       @id @default(uuid())
+  propertyId        String       @map("property_id")
+  tenantId          String       @map("tenant_id")
+  ownerId           String       @map("owner_id")
+  startDate         DateTime     @map("start_date")
+  endDate           DateTime     @map("end_date")
+  monthlyRent       Float        @map("monthly_rent")
+  securityDeposit   Float        @map("security_deposit")
+  maintenanceCharge Float        @default(0) @map("maintenance_charge")
+  rentDueDay        Int          @default(5) @map("rent_due_day")
+  status            RentalStatus @default(ACTIVE)
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  property    Property             @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  tenant      TenantProfile        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  agreement   RentalAgreement?
+  invoices    RentInvoice[]
+  maintenance MaintenanceRequest[]
+  reviews     Review[]
+
+  @@index([tenantId, status])
+  @@index([propertyId, status])
+  @@index([ownerId])
+  @@map("rentals")
+}
+
+model RentalAgreement {
+  id                 String    @id @default(uuid())
+  rentalId           String    @unique @map("rental_id")
+  startDate          DateTime  @map("start_date")
+  endDate            DateTime  @map("end_date")
+  rent               Float
+  deposit            Float
+  noticePeriodMonths Int       @default(1) @map("notice_period_months")
+  specialTerms       String?   @db.Text @map("special_terms")
+  documentUrl        String?   @map("document_url")
+  signedByTenant     Boolean   @default(false) @map("signed_by_tenant")
+  signedByOwner      Boolean   @default(false) @map("signed_by_owner")
+  signedAt           DateTime? @map("signed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  rental Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  @@map("rental_agreements")
+}
+
+model RentInvoice {
+  id           String        @id @default(uuid())
+  rentalId     String        @map("rental_id")
+  billingMonth String        @map("billing_month") // format YYYY-MM
+  dueDate      DateTime      @map("due_date")
+  baseRent     Float         @map("base_rent")
+  maintenance  Float         @default(0)
+  lateFee      Float         @default(0) @map("late_fee")
+  discount     Float         @default(0)
+  totalAmount  Float         @map("total_amount")
+  status       InvoiceStatus @default(PENDING)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  rental   Rental    @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@unique([rentalId, billingMonth])
+  @@index([rentalId, status])
+  @@index([dueDate, status])
+  @@map("rent_invoices")
+}
+
+model Payment {
+  id                 String         @id @default(uuid())
+  invoiceId          String         @map("invoice_id")
+  tenantId           String         @map("tenant_id")
+  ownerId            String         @map("owner_id")
+  amount             Float
+  currency           String         @default("INR")
+  gateway            PaymentGateway @default(RAZORPAY_SANDBOX)
+  gatewayOrderId     String?        @unique @map("gateway_order_id")
+  gatewayPaymentId   String?        @unique @map("gateway_payment_id")
+  gatewaySignature   String?        @map("gateway_signature")
+  status             PaymentStatus  @default(PENDING)
+  paidAt             DateTime?      @map("paid_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  invoice RentInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  receipt Receipt?
+
+  @@index([invoiceId, status])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@map("payments")
+}
+
+model Receipt {
+  id                   String   @id @default(uuid())
+  paymentId            String   @unique @map("payment_id")
+  receiptNumber        String   @unique @map("receipt_number") // e.g. REC-202608-0001
+  tenantName           String   @map("tenant_name")
+  propertyName         String   @map("property_name")
+  billingPeriod        String   @map("billing_period")
+  amountPaid           Float    @map("amount_paid")
+  paymentDate          DateTime @map("payment_date")
+  transactionReference String   @map("transaction_reference")
+  pdfUrl               String?  @map("pdf_url")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  // Relations
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("receipts")
+}
+
+model MaintenanceRequest {
+  id          String              @id @default(uuid())
+  rentalId    String              @map("rental_id")
+  tenantId    String              @map("tenant_id")
+  propertyId  String              @map("property_id")
+  category    MaintenanceCategory @default(OTHER)
+  description String              @db.Text
+  priority    MaintenancePriority @default(MEDIUM)
+  status      MaintenanceStatus   @default(OPEN)
+  imageUrl    String?             @map("image_url")
+  resolvedAt  DateTime?           @map("resolved_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  rental   Rental        @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  tenant   TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([rentalId, status])
+  @@index([propertyId])
+  @@map("maintenance_requests")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType @default(SYSTEM)
+  title     String
+  message   String           @db.Text
+  link      String?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model Review {
+  id                String   @id @default(uuid())
+  reviewerId        String   @map("reviewer_id")
+  propertyId        String   @map("property_id")
+  rentalId          String   @map("rental_id")
+  rating            Int      @default(5)
+  cleanlinessRating Int?     @map("cleanliness_rating")
+  locationRating    Int?     @map("location_rating")
+  ownerRating       Int?     @map("owner_rating")
+  comment           String   @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  reviewer User     @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rental   Rental   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerId, propertyId, rentalId])
+  @@index([propertyId])
+  @@map("reviews")
+}
+
+model Complaint {
+  id            String          @id @default(uuid())
+  userId        String          @map("user_id")
+  propertyId    String?         @map("property_id")
+  category      String
+  description   String          @db.Text
+  priority      String          @default("MEDIUM")
+  status        ComplaintStatus @default(OPEN)
+  adminResponse String?         @db.Text @map("admin_response")
+  resolvedAt    DateTime?       @map("resolved_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  user     User      @relation("UserComplaints", fields: [userId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([propertyId])
+  @@map("complaints")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  ipAddress  String?  @map("ip_address")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
