@@ -15,12 +15,6 @@ app.use(helmet({
 }));
 
 // CORS configuration
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173'
-];
-
 app.use(cors({
   origin: function (origin, callback) {
     callback(null, true); // Permissive for production deployment
@@ -66,7 +60,22 @@ app.get('/api', (req, res) => {
   res.json({
     message: 'Smart Rental House Management & Discovery Platform API',
     version: '1.0.0',
-    status: 'online'
+    status: 'online',
+    endpoints: {
+      auth: '/api/auth',
+      properties: '/api/properties',
+      favorites: '/api/favorites',
+      applications: '/api/applications',
+      rentals: '/api/rentals',
+      invoices: '/api/rentals/invoices',
+      payments: '/api/payments',
+      maintenance: '/api/maintenance',
+      reviews: '/api/reviews',
+      complaints: '/api/complaints',
+      notifications: '/api/notifications',
+      recommendations: '/api/recommendations',
+      admin: '/api/admin'
+    }
   });
 });
 
@@ -85,27 +94,80 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 
-// Serve Frontend Production Build if present (All-in-One Single Service Deployment on Render)
-const frontendDist = path.join(__dirname, '../../frontend/dist');
-const localDist = path.join(__dirname, '../dist');
+// Locate frontend production build across possible deployment directories
+const candidateDistDirs = [
+  path.resolve(__dirname, '../dist'),
+  path.resolve(__dirname, '../../frontend/dist'),
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve(process.cwd(), 'backend/dist'),
+  path.resolve(process.cwd(), 'dist'),
+  path.resolve(process.cwd(), '../frontend/dist'),
+  path.resolve(__dirname, '../../dist')
+];
 
-if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
+let foundDistDir = null;
+for (const dir of candidateDistDirs) {
+  if (fs.existsSync(dir) && fs.existsSync(path.join(dir, 'index.html'))) {
+    foundDistDir = dir;
+    break;
+  }
+}
+
+if (foundDistDir) {
+  console.log(`[Frontend]: Serving static production build from ${foundDistDir}`);
+  app.use(express.static(foundDistDir));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/health')) {
       return next();
     }
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  });
-} else if (fs.existsSync(localDist)) {
-  app.use(express.static(localDist));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/health')) {
-      return next();
-    }
-    res.sendFile(path.join(localDist, 'index.html'));
+    res.sendFile(path.join(foundDistDir, 'index.html'));
   });
 } else {
+  // If deployed as standalone API service, render interactive API portal at root
+  app.get('/', (req, res) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Smart Rental API Gateway</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+      </head>
+      <body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-6 font-sans">
+        <div class="max-w-xl w-full bg-slate-800 rounded-3xl p-8 border border-slate-700 shadow-2xl space-y-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-lg">SR</div>
+            <div>
+              <h1 class="text-xl font-bold">Smart Rental API Server</h1>
+              <p class="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 mt-0.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Service is Active & Healthy
+              </p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            The REST API gateway and database services are operational. You can query endpoints or connect the frontend client.
+          </p>
+          <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+            <a href="/api" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-blue-400 hover:border-blue-500 transition block">
+              /api &rarr; Root Index
+            </a>
+            <a href="/health" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-emerald-400 hover:border-emerald-500 transition block">
+              /health &rarr; Health Check
+            </a>
+            <a href="/api/properties" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-purple-400 hover:border-purple-500 transition block">
+              /api/properties
+            </a>
+            <a href="/api/admin/analytics" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-amber-400 hover:border-amber-500 transition block">
+              /api/admin/analytics
+            </a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+  });
+
   // 404 Handler for API routes
   app.use((req, res) => {
     res.status(404).json({
