@@ -4,12 +4,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 
 // Security HTTP headers
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false // Allow Leaflet map tiles and external images
 }));
 
 // CORS configuration
@@ -21,11 +23,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Permissive for local development
-    }
+    callback(null, true); // Permissive for production deployment
   },
   credentials: true
 }));
@@ -87,14 +85,36 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.originalUrl} not found`,
-    errorCode: 'NOT_FOUND'
+// Serve Frontend Production Build if present (All-in-One Single Service Deployment on Render)
+const frontendDist = path.join(__dirname, '../../frontend/dist');
+const localDist = path.join(__dirname, '../dist');
+
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/health')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
   });
-});
+} else if (fs.existsSync(localDist)) {
+  app.use(express.static(localDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/health')) {
+      return next();
+    }
+    res.sendFile(path.join(localDist, 'index.html'));
+  });
+} else {
+  // 404 Handler for API routes
+  app.use((req, res) => {
+    res.status(404).json({
+      success: false,
+      message: `Route ${req.originalUrl} not found`,
+      errorCode: 'NOT_FOUND'
+    });
+  });
+}
 
 // Global Error Handler
 app.use((err, req, res, next) => {
