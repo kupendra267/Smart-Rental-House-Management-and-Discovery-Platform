@@ -1,8 +1,8 @@
 const { z } = require('zod');
 
 const createPropertySchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters').max(150),
-  description: z.string().min(20, 'Description must be at least 20 characters'),
+  title: z.string().min(3, 'Title must be at least 3 characters').max(150),
+  description: z.string().min(5, 'Description must be at least 5 characters'),
   propertyType: z.enum(['APARTMENT', 'INDEPENDENT_HOUSE', 'VILLA', 'PG', 'ROOM', 'OTHER']).default('APARTMENT'),
   bhk: z.number().int().min(1).max(10).default(1),
   bathrooms: z.number().int().min(1).max(10).default(1),
@@ -15,19 +15,19 @@ const createPropertySchema = z.object({
   maintenanceCharge: z.number().nonnegative().default(0),
   tenantPreference: z.enum(['ANY', 'FAMILY_ONLY', 'BACHELOR_ONLY', 'FEMALE_ONLY', 'STUDENT_ONLY']).default('ANY'),
   // Location info
-  address: z.string().min(5),
-  area: z.string().min(2),
-  city: z.string().min(2),
-  state: z.string().default('Karnataka'),
-  pincode: z.string().min(4).max(10),
+  address: z.string().optional().default('Main Road'),
+  area: z.string().min(1, 'Area is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().optional().default('Karnataka'),
+  pincode: z.string().optional().default('560001'),
   latitude: z.number().optional().default(12.9716),
   longitude: z.number().optional().default(77.5946),
-  // Amenities list of amenity IDs or names
+  // Amenities list
   amenities: z.array(z.string()).optional().default([]),
-  // Images
+  // Images (Accepts both web URLs and Base64 Data URLs)
   images: z.array(z.object({
-    url: z.string().url(),
-    imageType: z.enum(['EXTERIOR', 'LIVING_ROOM', 'BEDROOM', 'KITCHEN', 'BATHROOM', 'PARKING', 'BALCONY', 'OTHER']).default('OTHER'),
+    url: z.string().min(1, 'Image URL or data is required'),
+    imageType: z.enum(['EXTERIOR', 'LIVING_ROOM', 'BEDROOM', 'KITCHEN', 'BATHROOM', 'PARKING', 'BALCONY', 'OTHER']).default('LIVING_ROOM'),
     displayOrder: z.number().int().default(0)
   })).optional().default([])
 });
@@ -49,7 +49,7 @@ const searchPropertySchema = z.object({
   maxDeposit: z.coerce.number().optional(),
   furnishingStatus: z.string().optional(),
   tenantPreference: z.string().optional(),
-  amenities: z.string().optional(), // comma-separated
+  amenities: z.string().optional(),
   sortBy: z.enum(['price_low_to_high', 'price_high_to_low', 'newest', 'views', 'distance', 'recommended']).default('newest'),
   lat: z.coerce.number().optional(),
   lng: z.coerce.number().optional(),

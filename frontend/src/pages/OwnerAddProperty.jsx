@@ -251,7 +251,15 @@ export default function OwnerAddProperty() {
         navigate('/owner/dashboard');
       }
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to list property');
+      let errMsg = err.response?.data?.message || 'Failed to list property';
+      if (err.response?.data?.errors) {
+        const fieldErrors = err.response.data.errors;
+        const firstField = Object.keys(fieldErrors)[0];
+        if (firstField && fieldErrors[firstField]?.length) {
+          errMsg = `${firstField}: ${fieldErrors[firstField][0]}`;
+        }
+      }
+      showError(errMsg);
     } finally {
       setSubmitting(false);
     }
