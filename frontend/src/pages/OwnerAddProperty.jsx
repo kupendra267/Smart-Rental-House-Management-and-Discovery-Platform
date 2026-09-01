@@ -1,6 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Building, MapPin, IndianRupee, Image, CheckSquare, Compass, Sparkles, Navigation, CheckCircle2 } from 'lucide-react';
+import {
+  PlusCircle,
+  Building,
+  MapPin,
+  IndianRupee,
+  Image as ImageIcon,
+  CheckSquare,
+  Compass,
+  Sparkles,
+  Navigation,
+  CheckCircle2,
+  Upload,
+  Camera,
+  Check
+} from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import MapComponent from '../components/MapComponent';
@@ -17,6 +31,33 @@ const AMENITY_LIST = [
   'Modular Kitchen & Piped Gas',
   'Spacious Balcony',
   'Water Purifier (RO)'
+];
+
+const PRESET_SAMPLE_PHOTOS = [
+  {
+    name: 'Modern Apartment',
+    url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80'
+  },
+  {
+    name: 'Luxury Villa',
+    url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80'
+  },
+  {
+    name: 'Cozy Independent House',
+    url: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80'
+  },
+  {
+    name: 'Spacious Living Hall',
+    url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80'
+  },
+  {
+    name: 'Contemporary Bedroom',
+    url: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=800&q=80'
+  },
+  {
+    name: 'Modular Kitchen Flat',
+    url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&q=80'
+  }
 ];
 
 const SUGGESTED_CITIES = [
@@ -67,7 +108,7 @@ export default function OwnerAddProperty() {
   const [maintenanceCharge, setMaintenanceCharge] = useState(2000);
   const [tenantPreference, setTenantPreference] = useState('ANY');
 
-  // Location fields (supports ANY small city, town, village, or district detected by GPS)
+  // Location fields
   const [address, setAddress] = useState('');
   const [area, setArea] = useState('Koramangala');
   const [city, setCity] = useState('Bangalore');
@@ -79,8 +120,14 @@ export default function OwnerAddProperty() {
   const [geocoding, setGeocoding] = useState(false);
 
   // Amenities & Images
-  const [selectedAmenities, setSelectedAmenities] = useState(['Wi-Fi / High-Speed Internet', 'Covered Car Parking', '24/7 Power Backup']);
-  const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80');
+  const [selectedAmenities, setSelectedAmenities] = useState([
+    'Wi-Fi / High-Speed Internet',
+    'Covered Car Parking',
+    '24/7 Power Backup'
+  ]);
+  const [imageUrl, setImageUrl] = useState(PRESET_SAMPLE_PHOTOS[0].url);
+  const [imageTab, setImageTab] = useState('upload'); // 'upload' | 'preset' | 'url'
+  const [uploadFileName, setUploadFileName] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -90,6 +137,30 @@ export default function OwnerAddProperty() {
     } else {
       setSelectedAmenities([...selectedAmenities, name]);
     }
+  };
+
+  // Handle local image file upload from device
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showError('Please select a valid image file (.jpg, .png, .webp)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showError('Image size should be less than 10MB');
+      return;
+    }
+
+    setUploadFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageUrl(reader.result);
+      showSuccess(`Photo "${file.name}" uploaded successfully!`);
+    };
+    reader.readAsDataURL(file);
   };
 
   // Reverse geocodes ANY small town, village, or coordinates
@@ -106,7 +177,6 @@ export default function OwnerAddProperty() {
         const data = await response.json();
         if (data.address) {
           const addr = data.address;
-          // Accurately detect small city, town, municipality, or district
           const detectedCity =
             addr.city ||
             addr.town ||
@@ -474,23 +544,141 @@ export default function OwnerAddProperty() {
           </div>
         </div>
 
-        {/* Image URL & Amenities */}
-        <div className="space-y-3 pt-4 border-t border-gray-100">
-          <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-            <Image className="w-4 h-4 text-blue-600" /> Photo & Amenities
-          </h3>
-          <div>
-            <label className="block font-bold text-gray-700 mb-1">Primary Image URL</label>
-            <input
-              type="url"
-              required
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full bg-gray-50 border rounded-xl p-2.5 font-medium"
-            />
+        {/* Enhanced Photo Upload & Amenities Section */}
+        <div className="space-y-4 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+              <ImageIcon className="w-4 h-4 text-blue-600" /> House Photo & Visuals
+            </h3>
+            <span className="text-[11px] text-gray-400 font-semibold">Upload device photo or pick a sample</span>
           </div>
 
-          <div>
+          {/* Photo Source Selector Tabs */}
+          <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-2xl w-fit">
+            <button
+              type="button"
+              onClick={() => setImageTab('upload')}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 ${
+                imageTab === 'upload' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Upload className="w-3.5 h-3.5" /> Upload from Computer / Mobile
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageTab('preset')}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 ${
+                imageTab === 'preset' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" /> Pick from Sample Gallery
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageTab('url')}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 ${
+                imageTab === 'url' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              🌐 Paste Web URL
+            </button>
+          </div>
+
+          {/* Tab 1: Upload from Device */}
+          {imageTab === 'upload' && (
+            <div className="space-y-2">
+              <label
+                htmlFor="photo-file-upload"
+                className="border-2 border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/40 hover:bg-blue-50/80 rounded-3xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="font-bold text-xs text-blue-900">Click to upload photo from your device</span>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Supports PNG, JPG, JPEG, WEBP (Max 10MB)</p>
+                </div>
+                {uploadFileName && (
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[11px] flex items-center gap-1 mt-1">
+                    <Check className="w-3.5 h-3.5" /> Selected: {uploadFileName}
+                  </span>
+                )}
+                <input
+                  id="photo-file-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Tab 2: Pick from Sample Gallery Presets */}
+          {imageTab === 'preset' && (
+            <div className="space-y-2">
+              <span className="text-[11px] text-gray-500 font-medium">Click any sample to use as your listing photo:</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {PRESET_SAMPLE_PHOTOS.map((preset, idx) => {
+                  const isSelected = imageUrl === preset.url;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setImageUrl(preset.url);
+                        setUploadFileName('');
+                        showSuccess(`Selected: ${preset.name}`);
+                      }}
+                      className={`relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer border-2 transition group ${
+                        isSelected ? 'border-blue-600 ring-2 ring-blue-500/40' : 'border-gray-200 hover:border-blue-400'
+                      }`}
+                    >
+                      <img src={preset.url} alt={preset.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 text-white text-[10px] font-bold flex items-center justify-between">
+                        <span className="truncate">{preset.name}</span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Paste Direct URL */}
+          {imageTab === 'url' && (
+            <div className="space-y-1">
+              <label className="block font-bold text-gray-700">Direct Image URL (e.g. Unsplash or direct .jpg link)</label>
+              <input
+                type="url"
+                required
+                placeholder="https://images.unsplash.com/photo-..."
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="w-full bg-gray-50 border rounded-xl p-2.5 font-medium"
+              />
+            </div>
+          )}
+
+          {/* Live Photo Preview Card */}
+          {imageUrl && (
+            <div className="p-3 bg-gray-50 rounded-2xl border border-gray-200 flex items-center gap-3">
+              <img
+                src={imageUrl}
+                alt="Listing Preview"
+                className="w-20 h-16 object-cover rounded-xl shadow-sm border border-gray-200 shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Photo Loaded & Ready
+                </span>
+                <p className="text-[10px] text-gray-500 truncate mt-0.5">This image will be displayed on the property search card and details page.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Amenities Selector */}
+          <div className="pt-2">
             <label className="block font-bold text-gray-700 mb-2">Select Amenities</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {AMENITY_LIST.map((amen) => {
