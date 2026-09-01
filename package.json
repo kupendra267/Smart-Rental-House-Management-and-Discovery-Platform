@@ -4,7 +4,7 @@
   "description": "Smart Rental House Management and Discovery Platform - Final Year Capstone Project",
   "main": "backend/src/server.js",
   "scripts": {
-    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
+    "build": "cd frontend && npm install && npm run build",
     "start": "node backend/src/server.js",
     "dev": "node run.js",
     "test:auth": "node backend/tests/run-auth-test.js",
