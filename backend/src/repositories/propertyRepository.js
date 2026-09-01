@@ -25,10 +25,14 @@ class PropertyRepository {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
 
+    const isPendingQuery = filters.status === 'PENDING_APPROVAL' || filters.verificationStatus === 'PENDING';
+    const targetStatus = filters.status || (isPendingQuery ? 'PENDING_APPROVAL' : 'AVAILABLE');
+    const targetVerification = filters.verificationStatus || (isPendingQuery ? 'PENDING' : 'APPROVED');
+
     if (isPrismaConnected()) {
       const where = {
-        status: filters.status || 'AVAILABLE',
-        verificationStatus: 'APPROVED'
+        status: targetStatus,
+        verificationStatus: targetVerification
       };
 
       if (filters.city) {
@@ -81,10 +85,15 @@ class PropertyRepository {
 
     // In-memory search & filter
     let items = memoryStore.properties.filter(p => {
-      // By default public search only shows AVAILABLE and APPROVED
-      if (filters.status && p.status !== filters.status) return false;
-      if (!filters.status && p.status !== 'AVAILABLE') return false;
-      if (p.verificationStatus !== 'APPROVED') return false;
+      // Pending queries (for Admin Approvals)
+      if (isPendingQuery) {
+        if (p.verificationStatus !== 'PENDING' && p.status !== 'PENDING_APPROVAL') return false;
+      } else {
+        // Public search only shows AVAILABLE and APPROVED
+        if (filters.status && p.status !== filters.status) return false;
+        if (!filters.status && p.status !== 'AVAILABLE') return false;
+        if (p.verificationStatus !== 'APPROVED') return false;
+      }
 
       const loc = memoryStore.propertyLocations.find(l => l.propertyId === p.id);
       if (!loc) return false;

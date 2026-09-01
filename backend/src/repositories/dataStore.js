@@ -220,8 +220,8 @@ function initMemoryStore() {
       maintenanceCharge: p.maint,
       availableFrom: new Date(),
       tenantPreference: p.pref,
-      status: isFirstRented ? 'RENTED' : 'AVAILABLE',
-      verificationStatus: 'APPROVED',
+      status: isFirstRented ? 'RENTED' : (idx >= propConfigs.length - 2 ? 'PENDING_APPROVAL' : 'AVAILABLE'),
+      verificationStatus: idx >= propConfigs.length - 2 ? 'PENDING' : 'APPROVED',
       viewsCount: 65 + idx * 4,
       createdAt: new Date(),
       updatedAt: new Date()
