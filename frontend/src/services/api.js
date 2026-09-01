@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
     window.location.hostname !== 'localhost' &&
     window.location.hostname !== '127.0.0.1'
   ) {
-    return 'https://smart-rental-house-management-and.onrender.com';
+    return 'https://smart-rental-house-management-and-kush.onrender.com';
   }
   return 'http://localhost:5000';
 };
