@@ -9,6 +9,7 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
+import PropertyCompare from './pages/PropertyCompare';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Favorites from './pages/Favorites';
@@ -52,6 +53,7 @@ function AppRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/properties" element={<Properties />} />
           <Route path="/properties/:id" element={<PropertyDetail />} />
+          <Route path="/compare" element={<PropertyCompare />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 

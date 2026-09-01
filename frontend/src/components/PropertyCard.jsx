@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MapPin, Bed, Bath, Maximize, Sparkles, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Heart, MapPin, Bed, Bath, Maximize, Sparkles, CheckCircle2, ShieldCheck, Scale } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
@@ -53,7 +53,7 @@ export default function PropertyCard({ property, isFavoriteInitial = false, onFa
   };
 
   return (
-    <div className="group bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+    <div className="group bg-white rounded-3xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
       <div>
         {/* Card Image & Badges */}
         <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
@@ -80,15 +80,24 @@ export default function PropertyCard({ property, isFavoriteInitial = false, onFa
             </div>
           )}
 
-          {/* Favorite Heart Button */}
-          <button
-            onClick={toggleFavorite}
-            disabled={loadingFav}
-            aria-label="Save property"
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm hover:bg-white flex items-center justify-center text-gray-600 hover:text-rose-600 shadow-md transition-transform active:scale-90"
-          >
-            <Heart className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
-          </button>
+          {/* Top Right Action Icons */}
+          <div className="absolute top-3 right-3 flex items-center gap-1.5">
+            <Link
+              to={`/compare?ids=${property.id}`}
+              title="Compare property"
+              className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm hover:bg-white flex items-center justify-center text-gray-600 hover:text-blue-600 shadow-md transition-transform active:scale-90"
+            >
+              <Scale className="w-4 h-4" />
+            </Link>
+            <button
+              onClick={toggleFavorite}
+              disabled={loadingFav}
+              aria-label="Save property"
+              className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm hover:bg-white flex items-center justify-center text-gray-600 hover:text-rose-600 shadow-md transition-transform active:scale-90"
+            >
+              <Heart className={`w-4 h-4 transition-colors ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Card Content */}
@@ -132,7 +141,7 @@ export default function PropertyCard({ property, isFavoriteInitial = false, onFa
             </div>
             <div className="flex items-center gap-1.5">
               <Bath className="w-4 h-4 text-blue-600" />
-              <span>{property.bathrooms} Baths</span>
+              <span>{property.bathrooms || 1} Baths</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Maximize className="w-4 h-4 text-blue-600" />
@@ -156,7 +165,7 @@ export default function PropertyCard({ property, isFavoriteInitial = false, onFa
                 {property.furnishingStatus?.replace('_', ' ')}
               </span>
               <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700">
-                {property.tenantPreference === 'ANY' ? 'All Tenants Welcome' : property.tenantPreference?.replace('_', ' ')}
+                {property.tenantPreference === 'ANY' ? 'All Welcome' : property.tenantPreference?.replace('_', ' ')}
               </span>
             </div>
           )}

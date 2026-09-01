@@ -17,6 +17,7 @@ import {
   Star,
   MessageSquare,
   ArrowLeft,
+  Scale,
   X
 } from 'lucide-react';
 import api from '../services/api';
@@ -58,12 +59,33 @@ export default function PropertyDetail() {
       const res = await api.get(`/properties/${id}`);
       if (res.data.success) {
         setProperty(res.data.data.property);
+        setIsFavorite(res.data.data.property.isFavorite || false);
       }
     } catch (err) {
       showError('Property not found');
       navigate('/properties');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!isAuthenticated) {
+      showError('Please sign in to save properties');
+      return;
+    }
+    try {
+      if (isFavorite) {
+        await api.delete(`/favorites/${property.id}`);
+        setIsFavorite(false);
+        showSuccess('Removed from saved properties');
+      } else {
+        await api.post('/favorites', { propertyId: property.id });
+        setIsFavorite(true);
+        showSuccess('Saved to your favorites');
+      }
+    } catch (e) {
+      showError('Failed to update favorites');
     }
   };
 
@@ -142,12 +164,20 @@ export default function PropertyDetail() {
         <Link to="/properties" className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition">
           <ArrowLeft className="w-4 h-4" /> Back to Properties
         </Link>
-        <button
-          onClick={() => setReportModalOpen(true)}
-          className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1"
-        >
-          <AlertTriangle className="w-3.5 h-3.5" /> Report Listing
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to={`/compare?ids=${property.id}`}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-xl transition"
+          >
+            <Scale className="w-3.5 h-3.5" /> Compare this House
+          </Link>
+          <button
+            onClick={() => setReportModalOpen(true)}
+            className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 px-2 py-1.5 rounded-xl transition hover:bg-rose-50"
+          >
+            <AlertTriangle className="w-3.5 h-3.5" /> Report Listing
+          </button>
+        </div>
       </div>
 
       {/* Property Title & Header */}
@@ -160,6 +190,15 @@ export default function PropertyDetail() {
             {property.verificationStatus === 'APPROVED' && (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" /> Verified Listing
+              </span>
+            )}
+            {property.tenantPreference && (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
+                {property.tenantPreference === 'ANY'
+                  ? '✓ All Welcome'
+                  : property.tenantPreference === 'BACHELOR_ONLY'
+                  ? '✓ Bachelor Allowed'
+                  : '✓ Family Only'}
               </span>
             )}
           </div>
@@ -254,7 +293,7 @@ export default function PropertyDetail() {
             <h3 className="font-extrabold text-base text-gray-900">Included Amenities</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {(property.amenities || []).map((item, idx) => {
-                const name = item.amenity?.name || item.name || 'Amenity';
+                const name = item.amenity?.name || item.name || (typeof item === 'string' ? item : 'Amenity');
                 return (
                   <div key={idx} className="flex items-center gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-semibold text-gray-800">
                     <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
@@ -299,7 +338,7 @@ export default function PropertyDetail() {
           </div>
         </div>
 
-        {/* Right Col: Owner Card & Apply Box */}
+        {/* Right Col: Owner Card, Favorite & Apply Box */}
         <div className="space-y-6 lg:sticky lg:top-24">
           {/* Owner Profile Card */}
           <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm space-y-4">
@@ -314,6 +353,29 @@ export default function PropertyDetail() {
                   <ShieldCheck className="w-3.5 h-3.5" /> Identity Verified Owner
                 </div>
               </div>
+            </div>
+
+            {/* Favorite & Compare Action Buttons */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+              <button
+                onClick={toggleFavorite}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  isFavorite
+                    ? 'bg-rose-50 border-rose-200 text-rose-600'
+                    : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-600 text-rose-600' : ''}`} />
+                <span>{isFavorite ? 'Saved' : 'Save'}</span>
+              </button>
+
+              <Link
+                to={`/compare?ids=${property.id}`}
+                className="py-2.5 px-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 transition flex items-center justify-center gap-1.5"
+              >
+                <Scale className="w-4 h-4 text-blue-600" />
+                <span>Compare</span>
+              </Link>
             </div>
 
             {/* Apply Button */}

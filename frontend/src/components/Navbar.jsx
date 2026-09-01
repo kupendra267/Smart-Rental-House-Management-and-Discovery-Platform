@@ -16,6 +16,7 @@ import {
   BarChart3,
   CheckSquare,
   Sparkles,
+  Scale,
   Menu,
   X
 } from 'lucide-react';
@@ -76,6 +77,15 @@ export default function Navbar() {
             }`}
           >
             <Search className="w-4 h-4" /> Explore Properties
+          </Link>
+
+          <Link
+            to="/compare"
+            className={`px-3 py-2 rounded-xl transition flex items-center gap-1.5 ${
+              isActive('/compare') ? 'text-blue-600 bg-blue-50' : 'hover:text-blue-600 hover:bg-gray-50'
+            }`}
+          >
+            <Scale className="w-4 h-4" /> Compare
           </Link>
 
           {/* Role specific links */}
@@ -275,6 +285,13 @@ export default function Navbar() {
             className="block py-2 font-medium text-gray-700 hover:text-blue-600"
           >
             Explore Properties
+          </Link>
+          <Link
+            to="/compare"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 font-medium text-gray-700 hover:text-blue-600"
+          >
+            Property Comparison
           </Link>
           {isAuthenticated && role === 'TENANT' && (
             <>
